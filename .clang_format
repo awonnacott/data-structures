@@ -1,0 +1,5 @@
+PointerAlignment: Left
+AccessModifierOffset: -1
+CompactNamespaces: true
+FixNamespaceComments: true
+NamespaceIndentation: None
