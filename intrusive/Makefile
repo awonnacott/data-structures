@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS=-std=c++17 -Wall -Wextra -Werror -Wno-non-template-friend
+CFLAGS=-std=c++2a -Wall -Wextra -pedantic
 
 all: tests
 
