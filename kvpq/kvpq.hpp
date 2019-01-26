@@ -4,37 +4,42 @@
 #include <functional>       // equal_to, hash, less
 #include <initializer_list> // initializer_list
 #include <utility>          // move, pair
+#include <variant>          // monostate
+
+#include "kvpq_fwd.hpp"
+
+#include "../intrusive/pair.hpp" // pair
 
 namespace ds {
 using std::forward;
 using std::move;
+using std::size_t;
+// TODO
 template <typename KVPQ>
 using kvpq_iterator =
     std::pair<typename KVPQ::key_type, typename KVPQ::mapped_type> *;
+// TODO
 template <typename KVPQ>
 using kvpq_const_iterator =
     const std::pair<typename KVPQ::key_type, typename KVPQ::mapped_type> *;
 
-template <typename K, typename V, typename H = std::hash<K>,
-          typename EQ = std::equal_to<K>, typename C = std::less<K>>
+template <typename K, typename V, typename H, typename EQ, typename C>
 class kvpq {
-  // TODO
 
 public:
-  using size_type = std::size_t;
   using key_type = K;
   using value_type = std::pair<K, V>;
   using mapped_type = V;
   using iterator = kvpq_iterator<kvpq>;
   using const_iterator = kvpq_const_iterator<kvpq>;
-  inline static constexpr size_type DEFAULT_SIZE = 10;
+  inline static constexpr size_t DEFAULT_SIZE = 10;
   // (1)
   kvpq() : kvpq(DEFAULT_SIZE) {}
-  explicit kvpq(size_type bucket_count, const H & = H(), const EQ & = EQ(),
+  explicit kvpq(size_t bucket_count, const H & = H(), const EQ & = EQ(),
                 const C & = C());
   // (2)
   template <typename IT>
-  kvpq(IT b, IT e, size_type bucket_count = DEFAULT_SIZE, const H & = H(),
+  kvpq(IT b, IT e, size_t bucket_count = DEFAULT_SIZE, const H & = H(),
        const EQ & = EQ(), const C & = C());
 
   // (3)
@@ -45,7 +50,7 @@ public:
 
   // (5)
   explicit kvpq(std::initializer_list<std::pair<K, V>> init,
-                size_type bucket_count = DEFAULT_SIZE, const H &hash = H(),
+                size_t bucket_count = DEFAULT_SIZE, const H &hash = H(),
                 const EQ &key_equal = EQ(), const C &comp = C())
       : kvpq(init.begin(), init.end(), bucket_count, hash, key_equal, comp) {}
 
@@ -66,8 +71,8 @@ public:
 
   // Capacity
   [[nodiscard]] bool empty() const noexcept { return _size == 0; }
-  size_type size() const noexcept { return _size; }
-  size_type max_size() const noexcept { return -1; }
+  size_t size() const noexcept { return _size; }
+  size_t max_size() const noexcept { return -1; }
 
   // Modifiers
   void push(const std::pair<K, V> &p) { insert(p); }
@@ -146,7 +151,7 @@ public:
 
   iterator erase(const_iterator pos);
   iterator erase(const_iterator first, const_iterator last);
-  size_type erase(const K &);
+  size_t erase(const K &);
   void swap(kvpq &);
 
   // merge(1)
@@ -162,7 +167,7 @@ public:
   const V &at(const K &) const;
   V &operator[](const K &);
   V &operator[](K &&);
-  size_type count(const K &k) const { return contains(k); }
+  size_t count(const K &k) const { return contains(k); }
 
   iterator find(const K &);
   const_iterator find(const K &) const;
@@ -172,32 +177,33 @@ public:
   float load_factor() const;
   float max_load_factor() const;
   void max_load_factor(float lf);
-  void rehash(size_type bucket_count);
-  void reserve(size_type count);
+  void rehash(size_t bucket_count);
+  void reserve(size_t count);
 
   // Observers
   H hash_function() const { return _hash; }
   EQ key_eq() const { return _key_equal; }
   C comp() const { return _comp; }
 
-  // Non-member functions
-  friend bool operator==(const kvpq &, const kvpq &);
-  friend bool operator!=(const kvpq &lhs, const kvpq &rhs) {
-    return !(lhs == rhs);
-  }
+  // Non-member functionspa
+  bool operator==(const kvpq &o);
+  bool operator!=(const kvpq &o) { return !(*this == o); }
   friend void swap(const kvpq &lhs, const kvpq &rhs) { return lhs.swap(rhs); }
 
 private:
-  size_type _bucket_count;
+  size_t _bucket_count;
   [[no_unique_address]] H _hash;
   [[no_unique_address]] EQ _key_equal;
   [[no_unique_address]] C _comp;
-  size_type _size = 0;
+  size_t _size = 0;
+  size_t *_hashcache;
+  intrusive::pair<std::pair<K, V>, std::monostate> *_hashtable;
+  intrusive::pair<std::monostate, std::pair<K, V>> *_heap;
 };
 
 // (1)
 template <typename K, typename V, typename H, typename EQ, typename C>
-kvpq<K, V, H, EQ, C>::kvpq(size_type bucket_count, const H &hash,
+kvpq<K, V, H, EQ, C>::kvpq(size_t bucket_count, const H &hash,
                            const EQ &key_equal, const C &comp)
     : _bucket_count(bucket_count), _hash(hash), _key_equal(key_equal),
       _comp(comp) {
@@ -206,7 +212,7 @@ kvpq<K, V, H, EQ, C>::kvpq(size_type bucket_count, const H &hash,
 // (2)
 template <typename K, typename V, typename H, typename EQ, typename C>
 template <typename IT>
-kvpq<K, V, H, EQ, C>::kvpq(IT b, IT e, size_type bucket_count, const H &hash,
+kvpq<K, V, H, EQ, C>::kvpq(IT b, IT e, size_t bucket_count, const H &hash,
                            const EQ &key_equal, const C &comp)
     : kvpq(bucket_count, hash, key_equal, comp) {
   // TODO
@@ -329,9 +335,9 @@ kvpq<K, V, H, EQ, C>::erase(kvpq_const_iterator<kvpq<K, V, H, EQ, C>> first,
   // TODO
 }
 template <typename K, typename V, typename H, typename EQ, typename C>
-typename kvpq<K, V, H, EQ, C>::size_type
-kvpq<K, V, H, EQ, C>::erase(const K &k) {
+size_t kvpq<K, V, H, EQ, C>::erase(const K &k) {
   // TODO
+  return 0;
 }
 
 template <typename K, typename V, typename H, typename EQ, typename C>
@@ -388,35 +394,37 @@ kvpq<K, V, H, EQ, C>::find(const K &k) const {
 template <typename K, typename V, typename H, typename EQ, typename C>
 bool kvpq<K, V, H, EQ, C>::contains(const K &k) const {
   // TODO
+  return false;
 }
 
 // Hash policy
 template <typename K, typename V, typename H, typename EQ, typename C>
 float kvpq<K, V, H, EQ, C>::load_factor() const {
   // TODO
+  return 0;
 }
 template <typename K, typename V, typename H, typename EQ, typename C>
 float kvpq<K, V, H, EQ, C>::max_load_factor() const {
   // TODO
+  return 0;
 }
 template <typename K, typename V, typename H, typename EQ, typename C>
 void kvpq<K, V, H, EQ, C>::max_load_factor(float lf) {
   // TODO
 }
 template <typename K, typename V, typename H, typename EQ, typename C>
-void kvpq<K, V, H, EQ, C>::rehash(size_type bucket_count) {
+void kvpq<K, V, H, EQ, C>::rehash(size_t bucket_count) {
   // TODO
 }
 template <typename K, typename V, typename H, typename EQ, typename C>
-void kvpq<K, V, H, EQ, C>::reserve(size_type count) {
+void kvpq<K, V, H, EQ, C>::reserve(size_t count) {
   // TODO
 }
 
 // Non-member functions
 template <typename K, typename V, typename H, typename EQ, typename C>
-bool operator==(const kvpq<K, V, H, EQ, C> &lhs,
-                const kvpq<K, V, H, EQ, C> &rhs) {
+bool kvpq<K, V, H, EQ, C>::operator==(const kvpq<K, V, H, EQ, C> &o) {
   // TODO
+  return true;
 }
-
 } // namespace ds

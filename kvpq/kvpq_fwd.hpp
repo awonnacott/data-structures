@@ -1,7 +1,9 @@
 // A combination of an unordered map and a priority queue
 #pragma once
 
-#include <functional>
+#include <functional> // equal_to, hash, less
+
+#include "../intrusive/pair_fwd.hpp"
 
 namespace ds {
 template <typename K, typename V, typename HASH = std::hash<K>,

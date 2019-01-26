@@ -48,22 +48,12 @@ public:
   friend constexpr std::pair<pair<AA, BB>, pair<BB, AA>> make_pair(const AA &,
                                                                    const BB &);
 
-  template <typename AA, typename BB>
-  constexpr friend bool operator==(const pair<AA, BB> &, const pair<AA, BB> &);
-  constexpr friend bool operator!=(const pair &lhs, const pair &rhs) {
-    return !(lhs == rhs);
-  }
-  template <typename AA, typename BB>
-  constexpr friend bool operator<(const pair<AA, BB> &, const pair<AA, BB> &);
-  constexpr friend bool operator<=(const pair &lhs, const pair &rhs) {
-    return !(rhs < lhs);
-  }
-  constexpr friend bool operator>(const pair &lhs, const pair &rhs) {
-    return rhs < lhs;
-  }
-  constexpr friend bool operator>=(const pair &lhs, const pair &rhs) {
-    return !(lhs < rhs);
-  }
+  constexpr bool operator==(const pair &);
+  constexpr bool operator!=(const pair &o) { return !(*this == o); }
+  constexpr bool operator<(const pair &);
+  constexpr bool operator<=(const pair &o) { return !(o < *this); }
+  constexpr bool operator>(const pair &o) { return o < *this; }
+  constexpr bool operator>=(const pair &o) { return !(*this < o); }
 
   // std::swap()
   friend void swap(pair &lhs, pair &rhs) { lhs.swap(rhs); }
@@ -128,24 +118,24 @@ constexpr std::pair<pair<A, B>, pair<B, A>> make_pair(const A &a, const B &b) {
 }
 
 template <typename A, typename B>
-constexpr bool operator==(const pair<A, B> &lhs, const pair<A, B> &rhs) {
-  if (&lhs == &rhs)
+constexpr bool pair<A, B>::operator==(const pair<A, B> &o) {
+  if (this == &o)
     return true;
-  if (!(lhs._a == rhs._a))
+  if (!(_a == o._a))
     return false;
-  if (lhs._other == rhs._other)
+  if (_other == o._other)
     return true;
-  return lhs._other && rhs._other && lhs->_a == rhs->_a;
+  return _other && o._other && _other->_a == o->_a;
 }
 
 template <typename A, typename B>
-constexpr bool operator<(const pair<A, B> &lhs, const pair<A, B> &rhs) {
-  if (lhs._a < rhs._a)
+constexpr bool pair<A, B>::operator<(const pair<A, B> &o) {
+  if (_a < o._a)
     return true;
-  if (rhs._a < lhs._a)
+  if (o._a < _a)
     return false;
-  if (!lhs._other && !rhs._other)
+  if (!_other && !o._other)
     return false;
-  return !lhs._other || (rhs._other && lhs->b < rhs->b);
+  return !_other || (o._other && _other->b < o->b);
 }
 } // namespace intrusive
