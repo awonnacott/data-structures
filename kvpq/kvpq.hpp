@@ -21,23 +21,23 @@ template <typename KVPQ> struct kvpq_const_iterator {
   using ci = kvpq_const_iterator;
   using difference_type = ptrdiff_t;
   using value_type = typename KVPQ::value_type;
-  using pointer = value_type *;
-  using reference = value_type &;
+  using pointer = value_type*;
+  using reference = value_type&;
   using iterator_category = std::random_access_iterator_tag;
 
   kvpq_const_iterator() = delete;
-  kvpq_const_iterator(const typename KVPQ::heap_type *elt) : _elt(elt) {}
+  kvpq_const_iterator(const typename KVPQ::heap_type* elt) : _elt(elt) {}
 
-  bool operator==(const ci &o) const { return _elt == o._elt; }
-  bool operator!=(const ci &o) const { return _elt != o._elt; }
-  bool operator<(const ci &o) const { return _elt < o._elt; }
-  bool operator<=(const ci &o) const { return _elt <= o._elt; }
-  bool operator>(const ci &o) const { return _elt > o._elt; }
-  bool operator>=(const ci &o) const { return _elt >= o._elt; }
+  bool operator==(const ci& o) const { return _elt == o._elt; }
+  bool operator!=(const ci& o) const { return _elt != o._elt; }
+  bool operator<(const ci& o) const { return _elt < o._elt; }
+  bool operator<=(const ci& o) const { return _elt <= o._elt; }
+  bool operator>(const ci& o) const { return _elt > o._elt; }
+  bool operator>=(const ci& o) const { return _elt >= o._elt; }
 
-  const value_type &operator*() const { return _elt->other()->get(); }
-  const typename KVPQ::table_type &operator->() const { return *_elt->other(); }
-  const value_type &operator[](size_t n) const { return *(*this + n); }
+  const value_type& operator*() const { return _elt->other()->get(); }
+  const typename KVPQ::table_type& operator->() const { return *_elt->other(); }
+  const value_type& operator[](size_t n) const { return *(*this + n); }
 
   ci operator++() { return ci(++_elt); }
   ci operator++(int) { return ci(_elt++); }
@@ -46,25 +46,25 @@ template <typename KVPQ> struct kvpq_const_iterator {
   ci operator+=(ptrdiff_t n) { return ci(_elt += n); }
   ci operator-=(ptrdiff_t n) { return ci(_elt -= n); }
   ci operator+(ptrdiff_t n) const { return ci(_elt + n); }
-  friend ci operator+(ptrdiff_t n, const ci &it) { return it + n; }
+  friend ci operator+(ptrdiff_t n, const ci& it) { return it + n; }
   ci operator-(ptrdiff_t n) const { return ci(_elt - n); }
-  ptrdiff_t operator-(const ci &it) const { return _elt - it._elt; }
+  ptrdiff_t operator-(const ci& it) const { return _elt - it._elt; }
 
-protected:
-  const typename KVPQ::heap_type *_elt;
+ protected:
+  const typename KVPQ::heap_type* _elt;
 };
 
 template <typename KVPQ> struct kvpq_iterator : kvpq_const_iterator<KVPQ> {
   using i = kvpq_iterator;
   using ci = kvpq_const_iterator<KVPQ>;
 
-  kvpq_iterator(typename KVPQ::heap_type *elt) : ci(elt) {}
-  operator ci &() { return ci(*this); }
-  operator const ci &() const { return ci(*this); }
+  kvpq_iterator(typename KVPQ::heap_type* elt) : ci(elt) {}
+  operator ci&() { return ci(*this); }
+  operator const ci&() const { return ci(*this); }
 
-  typename KVPQ::value_type &operator*() { return this->_elt->other()->get(); }
-  typename KVPQ::table_type &operator->() { return this->_elt->other(); }
-  typename KVPQ::value_type &operator[](size_t n) { return *(*this + n); }
+  typename KVPQ::value_type& operator*() { return this->_elt->other()->get(); }
+  typename KVPQ::table_type& operator->() { return this->_elt->other(); }
+  typename KVPQ::value_type& operator[](size_t n) { return *(*this + n); }
 
   i operator++() { return ++ci(*this); }
   i operator++(int) { return ci(*this)++; }
@@ -73,11 +73,11 @@ template <typename KVPQ> struct kvpq_iterator : kvpq_const_iterator<KVPQ> {
   i operator+=(ptrdiff_t n) { return ci(*this) += n; }
   i operator-=(ptrdiff_t n) { return ci(*this) -= n; }
   i operator+(ptrdiff_t n) const { return ci(*this) + n; }
-  friend i operator+(ptrdiff_t n, const i &it) { return it + n; }
+  friend i operator+(ptrdiff_t n, const i& it) { return it + n; }
   i operator-(ptrdiff_t n) const { return ci(*this) - n; }
 
-private:
-  kvpq_iterator(ci &&o) : ci(o) {}
+ private:
+  kvpq_iterator(ci&& o) : ci(o) {}
 }; // namespace ds
 
 template <typename K, typename V, typename H, typename EQ, typename C>
@@ -85,7 +85,7 @@ class kvpq {
   using table_type = intrusive::pair<std::pair<K, V>, std::monostate>;
   using heap_type = intrusive::pair<std::monostate, std::pair<K, V>>;
 
-public:
+ public:
   using key_type = K;
   using value_type = std::pair<K, V>;
   using mapped_type = V;
@@ -96,29 +96,29 @@ public:
   inline static constexpr size_t DEFAULT_SIZE = 10;
   // (1)
   kvpq() : kvpq(DEFAULT_SIZE) {}
-  explicit kvpq(size_t bucket_count, const H & = H(), const EQ & = EQ(),
-                const C & = C());
+  explicit kvpq(size_t bucket_count, const H& = H(), const EQ& = EQ(),
+                const C& = C());
   // (2)
   template <typename IT>
-  kvpq(IT b, IT e, size_t bucket_count = DEFAULT_SIZE, const H & = H(),
-       const EQ & = EQ(), const C & = C());
+  kvpq(IT b, IT e, size_t bucket_count = DEFAULT_SIZE, const H& = H(),
+       const EQ& = EQ(), const C& = C());
 
   // (3)
-  kvpq(const kvpq &);
+  kvpq(const kvpq&);
 
   // (4)
-  kvpq(kvpq &&);
+  kvpq(kvpq&&);
 
   // (5)
   explicit kvpq(std::initializer_list<std::pair<K, V>> init,
-                size_t bucket_count = DEFAULT_SIZE, const H &hash = H(),
-                const EQ &key_equal = EQ(), const C &comp = C())
+                size_t bucket_count = DEFAULT_SIZE, const H& hash = H(),
+                const EQ& key_equal = EQ(), const C& comp = C())
       : kvpq(init.begin(), init.end(), bucket_count, hash, key_equal, comp) {}
 
   ~kvpq();
 
-  kvpq &operator=(const kvpq &);
-  kvpq &operator=(kvpq &&);
+  kvpq& operator=(const kvpq&);
+  kvpq& operator=(kvpq&&);
 
   // Iterators
   iterator begin() noexcept { return _heap; }
@@ -135,28 +135,28 @@ public:
   size_t max_size() const noexcept { return -1; }
 
   // Modifiers
-  void push(const std::pair<K, V> &p) { insert(p); }
-  void push(std::pair<K, V> &&p) { insert(p); }
+  void push(const std::pair<K, V>& p) { insert(p); }
+  void push(std::pair<K, V>&& p) { insert(p); }
   void pop() { erase(begin()); }
   void clear() noexcept;
 
   // insert(1)
-  std::pair<iterator, bool> insert(const std::pair<K, V> &);
-  std::pair<iterator, bool> insert(std::pair<K, V> &&);
+  std::pair<iterator, bool> insert(const std::pair<K, V>&);
+  std::pair<iterator, bool> insert(std::pair<K, V>&&);
   // insert(2)
-  template <typename P> std::pair<iterator, bool> insert(P &&p) {
+  template <typename P> std::pair<iterator, bool> insert(P&& p) {
     return emplace(forward(p));
   }
   // insert(3)
-  iterator insert(const_iterator /* hint */, const std::pair<K, V> &p) {
+  iterator insert(const_iterator /* hint */, const std::pair<K, V>& p) {
     return insert(p);
   }
-  iterator insert(const_iterator /* hint */, std::pair<K, V> &&p) {
+  iterator insert(const_iterator /* hint */, std::pair<K, V>&& p) {
     return insert(move(p));
   }
   // insert(4)
   template <typename P>
-  std::pair<iterator, bool> insert(const_iterator /* hint */, P &&p) {
+  std::pair<iterator, bool> insert(const_iterator /* hint */, P&& p) {
     return insert(forward(p));
   }
   // insert(5)
@@ -168,70 +168,70 @@ public:
 
   // insert_or_assign(1)
   template <typename M>
-  std::pair<iterator, bool> insert_or_assign(const K &, M &&);
+  std::pair<iterator, bool> insert_or_assign(const K&, M&&);
   // insert_or_assign(2)
-  template <typename M> std::pair<iterator, bool> insert_or_assign(K &&, M &&);
+  template <typename M> std::pair<iterator, bool> insert_or_assign(K&&, M&&);
   // insert_or_assign(3)
   template <typename M>
   std::pair<iterator, bool> insert_or_assign(const_iterator /* hint */,
-                                             const K &k, M &&v) {
+                                             const K& k, M&& v) {
     return insert_or_assign(k, forward(v));
   }
   // insert_or_assign(4)
   template <typename M>
-  std::pair<iterator, bool> insert_or_assign(const_iterator /* hint */, K &&k,
-                                             M &&v) {
+  std::pair<iterator, bool> insert_or_assign(const_iterator /* hint */, K&& k,
+                                             M&& v) {
     return insert_or_assign(move(k), forward(v));
   }
 
-  template <typename... ARGS> std::pair<iterator, bool> emplace(ARGS &&...);
+  template <typename... ARGS> std::pair<iterator, bool> emplace(ARGS&&...);
   template <typename... ARGS>
-  iterator emplace_hint(const_iterator /* hint */, ARGS &&... args) {
+  iterator emplace_hint(const_iterator /* hint */, ARGS&&... args) {
     return emplace(forward(args)...).first;
   }
 
   // try_emplace(1)
   template <typename... ARGS>
-  std::pair<iterator, bool> try_emplace(const K &, ARGS &&...);
+  std::pair<iterator, bool> try_emplace(const K&, ARGS&&...);
   // try_emplace(2)
   template <typename... ARGS>
-  std::pair<iterator, bool> try_emplace(K &&, ARGS &&...);
+  std::pair<iterator, bool> try_emplace(K&&, ARGS&&...);
   // try_emplace(3)
   template <typename... ARGS>
-  std::pair<iterator, bool> try_emplace(const_iterator /* hint */, const K &k,
-                                        ARGS &&... args) {
+  std::pair<iterator, bool> try_emplace(const_iterator /* hint */, const K& k,
+                                        ARGS&&... args) {
     return try_emplace(k, forward(args)...);
   }
   // try_emplace(4)
   template <typename... ARGS>
-  std::pair<iterator, bool> try_emplace(const_iterator /* hint */, K &&k,
-                                        ARGS &&... args) {
+  std::pair<iterator, bool> try_emplace(const_iterator /* hint */, K&& k,
+                                        ARGS&&... args) {
     return try_emplace(move(k), forward(args)...);
   }
 
   iterator erase(const_iterator pos);
-  size_t erase(const K &);
-  void swap(kvpq &);
+  size_t erase(const K&);
+  void swap(kvpq&);
 
   // merge(1)
   template <typename H2, typename P2, typename C2>
-  void merge(const kvpq<K, V, H2, P2, C2> &);
+  void merge(const kvpq<K, V, H2, P2, C2>&);
   // merge(2)
   template <typename H2, typename P2, typename C2>
-  void merge(kvpq<K, V, H2, P2, C2> &&);
+  void merge(kvpq<K, V, H2, P2, C2>&&);
 
   // Lookup
-  std::pair<K, V> &top() { return *begin(); }
-  const std::pair<K, V> &top() const { return *begin(); }
-  V &at(const K &);
-  const V &at(const K &) const;
-  V &operator[](const K &);
-  V &operator[](K &&);
-  size_t count(const K &k) const { return contains(k); }
+  std::pair<K, V>& top() { return *begin(); }
+  const std::pair<K, V>& top() const { return *begin(); }
+  V& at(const K&);
+  const V& at(const K&) const;
+  V& operator[](const K&);
+  V& operator[](K&&);
+  size_t count(const K& k) const { return contains(k); }
 
-  iterator find(const K &);
-  const_iterator find(const K &) const;
-  bool contains(const K &) const;
+  iterator find(const K&);
+  const_iterator find(const K&) const;
+  bool contains(const K&) const;
 
   // Hash policy
   float load_factor() const;
@@ -246,74 +246,72 @@ public:
   C comp_function() const { return _comp; }
 
   // Non-member functionspa
-  bool operator==(const kvpq &o);
-  bool operator!=(const kvpq &o) { return !(*this == o); }
-  friend void swap(const kvpq &lhs, const kvpq &rhs) { return lhs.swap(rhs); }
+  bool operator==(const kvpq& o);
+  bool operator!=(const kvpq& o) { return !(*this == o); }
+  friend void swap(const kvpq& lhs, const kvpq& rhs) { return lhs.swap(rhs); }
 
-private:
-  [[nodiscard]] bool free(size_t i) { return !_offset[i]; }
-  size_t hash_at(size_t i) { return (_offset[i] + i + 1) & _bucket_mask; }
-  void set_hash_at(size_t i, size_t h) {
-    _offset[i] = (h - i - 1) & _bucket_mask;
-  }
-  void clear_hash_at(size_t i) { set_hash_at(i, (i + 1) & _bucket_mask); }
+ private:
+  [[nodiscard]] inline size_t prev(size_t i) { return (i - 1) & _bucket_mask; }
+  [[nodiscard]] inline size_t next(size_t i) { return (i + 1) & _bucket_mask; }
+  [[nodiscard]] inline bool free(size_t i) { return !_offset[i]; }
+  inline size_t hash_at(size_t i) { return next(_offset[i] + i); }
+  inline void set_hash_at(size_t i, size_t h) { _offset[i] = prev(h - i); }
+  inline void clear_hash_at(size_t i) { set_hash_at(i, next(i)); }
 
   struct Mask {
     Mask(size_t i) : _i(size_t(-1) >> __builtin_clzl(i)) {}
-    Mask &operator=(size_t i) {
+    Mask& operator=(size_t i) {
       _i = size_t(-1) >> __builtin_clzl(i);
       return *this;
     }
-    operator size_t &() { return _i; }
-    operator const size_t &() const { return _i; }
+    operator size_t&() { return _i; }
+    operator const size_t&() const { return _i; }
     size_t _i;
   } _bucket_mask;
   [[no_unique_address]] H _hash;
   [[no_unique_address]] EQ _key_equal;
   [[no_unique_address]] C _comp;
   size_t _size = 0;
-  size_t *_offset;
-  table_type *_table;
-  heap_type *_heap;
+  size_t* _offset;
+  table_type* _table;
+  heap_type* _heap;
 };
 
 // (1)
 template <typename K, typename V, typename H, typename EQ, typename C>
-kvpq<K, V, H, EQ, C>::kvpq(size_t bucket_count, const H &hash,
-                           const EQ &key_equal, const C &comp)
+kvpq<K, V, H, EQ, C>::kvpq(size_t bucket_count, const H& hash,
+                           const EQ& key_equal, const C& comp)
     : _bucket_mask(bucket_count - 1), _hash(hash), _key_equal(key_equal),
       _comp(comp) {
   _offset = new size_t[capacity()];
-  _table = (table_type *)operator new[](capacity() * sizeof(table_type));
-  _heap = (heap_type *)operator new[](capacity() * sizeof(heap_type));
+  _table = (table_type*)operator new[](capacity() * sizeof(table_type));
+  _heap = (heap_type*)operator new[](capacity() * sizeof(heap_type));
 }
 // (2)
 template <typename K, typename V, typename H, typename EQ, typename C>
 template <typename IT>
-kvpq<K, V, H, EQ, C>::kvpq(IT b, IT e, size_t bucket_count, const H &hash,
-                           const EQ &key_equal, const C &comp)
+kvpq<K, V, H, EQ, C>::kvpq(IT b, IT e, size_t bucket_count, const H& hash,
+                           const EQ& key_equal, const C& comp)
     : kvpq(bucket_count, hash, key_equal, comp) {
   insert(b, e);
 }
 // (3)
 template <typename K, typename V, typename H, typename EQ, typename C>
-kvpq<K, V, H, EQ, C>::kvpq(const kvpq &o)
+kvpq<K, V, H, EQ, C>::kvpq(const kvpq& o)
     : kvpq(o._bucket_mask + 1, o._hash, o._key_equal, o._comp) {
-  for (size_t i = 0; i <= _bucket_mask && _size < o.size(); ++i) {
-    if (!o.free(i)) {
-      ++_size;
-      _offset[i] = o._offset[i];
-      auto [table_entry, heap_entry] =
-          table_type::make(o._table[i].get(), std::monostate());
-      new (_table + i) table_type(move(table_entry));
-      new (_heap + i) heap_type(move(heap_entry));
-    }
+  for (size_t i = 0; i < o.size(); ++i) {
+    ++_size;
+    size_t j = o._heap[i].other() - o._table;
+    _offset[j] = o._offset[j];
+    auto [table_entry, heap_entry] = table_type::make(o._table[j].get());
+    new (_table + j) table_type(move(table_entry));
+    new (_heap + i) heap_type(move(heap_entry));
   }
 }
 
 // (4)
 template <typename K, typename V, typename H, typename EQ, typename C>
-kvpq<K, V, H, EQ, C>::kvpq(kvpq &&o)
+kvpq<K, V, H, EQ, C>::kvpq(kvpq&& o)
     : _bucket_mask(o._bucket_mask), _hash(move(o._hash)),
       _key_equal(move(o._key_equal)), _comp(move(o._comp)), _size(o._size),
       _offset(o._offset), _table(o._table), _heap(o._heap) {
@@ -332,7 +330,7 @@ kvpq<K, V, H, EQ, C>::~kvpq() {
 }
 
 template <typename K, typename V, typename H, typename EQ, typename C>
-kvpq<K, V, H, EQ, C> &kvpq<K, V, H, EQ, C>::operator=(const kvpq &o) {
+kvpq<K, V, H, EQ, C>& kvpq<K, V, H, EQ, C>::operator=(const kvpq& o) {
   if (_bucket_mask != o._bucket_mask) {
     ~kvpq();
     return *(new (this) kvpq(o));
@@ -340,21 +338,20 @@ kvpq<K, V, H, EQ, C> &kvpq<K, V, H, EQ, C>::operator=(const kvpq &o) {
 
   clear();
 
-  for (size_t i = 0; i <= _bucket_mask && _size < o.size(); ++i) {
-    if (!o.free(i)) {
-      ++_size;
-      _offset[i] = o._offset[i];
-      auto [table_entry, heap_entry] =
-          table_type::make(o._table[i].get(), std::monostate());
-      new (_table + i) table_type(move(table_entry));
-      new (_heap + i) heap_type(move(heap_entry));
-    }
+  for (size_t i = 0; i < o.size(); ++i) {
+    ++_size;
+    size_t j = o._heap[i].other() - o._table;
+    _offset[j] = o._offset[j];
+    auto [table_entry, heap_entry] = table_type::make(o._table[j].get());
+    new (_table + j) table_type(move(table_entry));
+    new (_heap + i) heap_type(move(heap_entry));
   }
+
   return *this;
 }
 
 template <typename K, typename V, typename H, typename EQ, typename C>
-kvpq<K, V, H, EQ, C> &kvpq<K, V, H, EQ, C>::operator=(kvpq &&o) {
+kvpq<K, V, H, EQ, C>& kvpq<K, V, H, EQ, C>::operator=(kvpq&& o) {
   ~kvpq();
   return *(new (this) kvpq(move(o)));
 }
@@ -362,74 +359,93 @@ kvpq<K, V, H, EQ, C> &kvpq<K, V, H, EQ, C>::operator=(kvpq &&o) {
 // Modifiers
 template <typename K, typename V, typename H, typename EQ, typename C>
 void kvpq<K, V, H, EQ, C>::clear() noexcept {
-  for (size_t i = 0; i <= _bucket_mask && _size; ++i) {
-    if (!free(i)) {
-      _table[i].~table_type();
-      _heap[i].~heap_type();
-      clear_hash_at(i);
-      --_size;
-    }
+  for (size_t i = 0; i < size(); ++i) {
+    size_t j = _heap[i].other() - _table;
+    _table[j].~table_type();
+    _heap[i].~heap_type();
+    clear_hash_at(j);
+    --_size;
   }
 }
 
 // insert(1)
 template <typename K, typename V, typename H, typename EQ, typename C>
 std::pair<kvpq_iterator<kvpq<K, V, H, EQ, C>>, bool>
-kvpq<K, V, H, EQ, C>::insert(const std::pair<K, V> &p) {
-  // TODO
+kvpq<K, V, H, EQ, C>::insert(const std::pair<K, V>& p) {
+  return emplace(p);
 }
 template <typename K, typename V, typename H, typename EQ, typename C>
 std::pair<kvpq_iterator<kvpq<K, V, H, EQ, C>>, bool>
-kvpq<K, V, H, EQ, C>::insert(std::pair<K, V> &&p) {
-  // TODO
+kvpq<K, V, H, EQ, C>::insert(std::pair<K, V>&& p) {
+  return emplace(move(p));
 }
 // insert(5)
 template <typename K, typename V, typename H, typename EQ, typename C>
 template <typename IT>
 void kvpq<K, V, H, EQ, C>::insert(IT first, IT last) {
-  // TODO
+  while (first != last) { insert(*first); }
 }
 
 // insert_or_assign(1)
 template <typename K, typename V, typename H, typename EQ, typename C>
 template <typename M>
 std::pair<kvpq_iterator<kvpq<K, V, H, EQ, C>>, bool>
-kvpq<K, V, H, EQ, C>::insert_or_assign(const K &k, M &&v) {
-  // TODO
+kvpq<K, V, H, EQ, C>::insert_or_assign(const K& k, M&& v) {
+  if (auto it = find(k); it == end()) {
+    return emplace(std::piecewise_construct, k, forward(v));
+  } else {
+    it->second = forward(v);
+    return {it, false};
+  }
 }
 // insert_or_assign(2)
 template <typename K, typename V, typename H, typename EQ, typename C>
 template <typename M>
 std::pair<kvpq_iterator<kvpq<K, V, H, EQ, C>>, bool>
-kvpq<K, V, H, EQ, C>::insert_or_assign(K &&k, M &&v) {
-  // TODO
+kvpq<K, V, H, EQ, C>::insert_or_assign(K&& k, M&& v) {
+  if (auto it = find(k); it == end()) {
+    return emplace(std::piecewise_construct, move(k), forward(v));
+  } else {
+    it->second = forward(v);
+    return {it, false};
+  }
 }
 
 template <typename K, typename V, typename H, typename EQ, typename C>
 template <typename... ARGS>
 std::pair<kvpq_iterator<kvpq<K, V, H, EQ, C>>, bool>
-kvpq<K, V, H, EQ, C>::emplace(ARGS &&... args) {
-  // TODO
+kvpq<K, V, H, EQ, C>::emplace(ARGS&&... args) {
+  auto [table_entry, heap_entry] = table_type::make(forward(args)...);
+  reserve(_size + 1);
+  size_t h = _hash(table_entry->first), i = h;
+  while (!free(i)) {
+    if (hash_at(i) == h && _table[i].first == table_entry.first) {
+      return {_table[i].other(), false};
+    }
+    i = next(i);
+  }
+
+  set_hash_at(i, h);
+  new (_table + i) table_type(move(table_entry));
+  size_t j = -1; // TODO
+  new (_heap + j) heap_type(move(heap_entry));
+  ++_size;
+  return {_heap + j, true};
 }
 
 // try_emplace(1)
 template <typename K, typename V, typename H, typename EQ, typename C>
 template <typename... ARGS>
 std::pair<kvpq_iterator<kvpq<K, V, H, EQ, C>>, bool>
-kvpq<K, V, H, EQ, C>::try_emplace(const K &k, ARGS &&... args) {
-  // TODO
-  int i;
-  auto [table_entry, heap_entry] = table_type::make(
-      std::make_pair(k, V(std::forward(args)...)), std::monostate());
-  new (_table + i) table_type(move(table_entry));
-  new (_heap + i) heap_type(move(heap_entry));
+kvpq<K, V, H, EQ, C>::try_emplace(const K& k, ARGS&&... args) {
+  return emplace(std::make_pair(k, V(std::forward(args)...)));
 }
 // try_emplace(2)
 template <typename K, typename V, typename H, typename EQ, typename C>
 template <typename... ARGS>
 std::pair<kvpq_iterator<kvpq<K, V, H, EQ, C>>, bool>
-kvpq<K, V, H, EQ, C>::try_emplace(K &&k, ARGS &&... args) {
-  // TODO
+kvpq<K, V, H, EQ, C>::try_emplace(K&& k, ARGS&&... args) {
+  return emplace(std::make_pair(move(k), V(std::forward(args)...)));
 }
 
 template <typename K, typename V, typename H, typename EQ, typename C>
@@ -438,62 +454,77 @@ kvpq<K, V, H, EQ, C>::erase(kvpq_const_iterator<kvpq<K, V, H, EQ, C>> pos) {
   // TODO
 }
 template <typename K, typename V, typename H, typename EQ, typename C>
-size_t kvpq<K, V, H, EQ, C>::erase(const K &k) {
-  // TODO
-  return 0;
+size_t kvpq<K, V, H, EQ, C>::erase(const K& k) {
+  if (auto it = find(k); it == end()) {
+    return 0;
+  } else {
+    erase(it);
+    return 1;
+  }
 }
 
 template <typename K, typename V, typename H, typename EQ, typename C>
-void kvpq<K, V, H, EQ, C>::swap(kvpq &o) {
+void kvpq<K, V, H, EQ, C>::swap(kvpq& o) {
   // TODO
 }
 
 // merge(1)
 template <typename K, typename V, typename H, typename EQ, typename C>
 template <typename H2, typename P2, typename C2>
-void kvpq<K, V, H, EQ, C>::merge(const kvpq<K, V, H2, P2, C2> &o) {
-  // TODO
+void kvpq<K, V, H, EQ, C>::merge(const kvpq<K, V, H2, P2, C2>& o) {
+  insert(o.begin(), o.end());
 }
 // merge(2)
 template <typename K, typename V, typename H, typename EQ, typename C>
 template <typename H2, typename P2, typename C2>
-void kvpq<K, V, H, EQ, C>::merge(kvpq<K, V, H2, P2, C2> &&o) {
+void kvpq<K, V, H, EQ, C>::merge(kvpq<K, V, H2, P2, C2>&& o) {
   // TODO
 }
 
 // Lookup
 
 template <typename K, typename V, typename H, typename EQ, typename C>
-V &kvpq<K, V, H, EQ, C>::at(const K &k) {
-  // TODO
+V& kvpq<K, V, H, EQ, C>::at(const K& k) {
+  if (auto it = find(k); it == end()) {
+    throw std::out_of_range("V& kvpq::at(const K&)");
+  } else {
+    return it->second;
+  }
 }
 template <typename K, typename V, typename H, typename EQ, typename C>
-const V &kvpq<K, V, H, EQ, C>::at(const K &k) const {
-  // TODO
+const V& kvpq<K, V, H, EQ, C>::at(const K& k) const {
+  if (auto it = find(k); it == end()) {
+    throw std::out_of_range("const V& kvpq::at(const K&) const");
+  } else {
+    return it->second;
+  }
 }
 
 template <typename K, typename V, typename H, typename EQ, typename C>
-V &kvpq<K, V, H, EQ, C>::operator[](const K &k) {
-  // TODO
+V& kvpq<K, V, H, EQ, C>::operator[](const K& k) {
+  return find(k)->second;
 }
 template <typename K, typename V, typename H, typename EQ, typename C>
-V &kvpq<K, V, H, EQ, C>::operator[](K &&k) {
-  // TODO
+V& kvpq<K, V, H, EQ, C>::operator[](K&& k) {
+  return find(k)->second;
 }
 
 template <typename K, typename V, typename H, typename EQ, typename C>
-kvpq_iterator<kvpq<K, V, H, EQ, C>> kvpq<K, V, H, EQ, C>::find(const K &k) {
-  // TODO
+kvpq_iterator<kvpq<K, V, H, EQ, C>> kvpq<K, V, H, EQ, C>::find(const K& k) {
+  return const_cast<const kvpq&>(*this).find(k);
 }
 template <typename K, typename V, typename H, typename EQ, typename C>
 kvpq_const_iterator<kvpq<K, V, H, EQ, C>>
-kvpq<K, V, H, EQ, C>::find(const K &k) const {
-  // TODO
+kvpq<K, V, H, EQ, C>::find(const K& k) const {
+  size_t h = _hash(k);
+  for (size_t i = h; !free(i); i = next(i)) {
+    if (hash_at(i) == h && _table[i].first == k) { return _table[i].other(); }
+  }
+  return end();
 }
 template <typename K, typename V, typename H, typename EQ, typename C>
-bool kvpq<K, V, H, EQ, C>::contains(const K &k) const {
-  // TODO
-  return false;
+bool kvpq<K, V, H, EQ, C>::contains(const K& k) const {
+  return find(k) == end();
 }
 
 // Hash policy
@@ -522,8 +553,15 @@ void kvpq<K, V, H, EQ, C>::reserve(size_t count) {
 
 // Non-member functions
 template <typename K, typename V, typename H, typename EQ, typename C>
-bool kvpq<K, V, H, EQ, C>::operator==(const kvpq<K, V, H, EQ, C> &o) {
-  // TODO
+bool kvpq<K, V, H, EQ, C>::operator==(const kvpq<K, V, H, EQ, C>& o) {
+  if (this == &o) { return true; }
+  if (size() != o.size()) { return false; }
+  for (auto it = o.begin(); it != o.end(); ++o) {
+    if (auto item = find(it->first);
+        item == end() || item->second != it->second) {
+      return false;
+    }
+  }
   return true;
 }
 } // namespace ds

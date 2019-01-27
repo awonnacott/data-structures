@@ -9,7 +9,7 @@ TEST_CASE("pairs of ints", "[intrusive::pair]") {
   REQUIRE(4 == q);
   REQUIRE(p.other()->get() == 4);
   REQUIRE(3 == q.other()->get());
-  REQUIRE(sizeof(pair<int, int> *) == sizeof(size_t));
+  REQUIRE(sizeof(pair<int, int>*) == sizeof(size_t));
   REQUIRE(sizeof(pair<int, int>) == 2 * sizeof(size_t));
   auto [r, s] = pair<int, int>::make(5, 6);
   REQUIRE(p == 3);
@@ -25,9 +25,9 @@ TEST_CASE("pairs of monostates", "[intrusive::pair]") {
   REQUIRE(sizeof(pair<int, std::monostate>) == 2 * sizeof(size_t));
   REQUIRE(sizeof(pair<std::monostate, int>) == sizeof(size_t));
   REQUIRE(sizeof(pair<std::monostate, std::monostate>) == sizeof(size_t));
-  auto [p, q] = pair<std::pair<int, std::string>, std::monostate>::make(
+  pair<std::pair<int, std::string>, std::monostate>::make(
       std::make_pair<int, std::string>(3, "abcd"), std::monostate());
-  auto [r, s] = pair<std::pair<int, std::string>, std::monostate>::make(
+  pair<std::pair<int, std::string>, std::monostate>::make(
       std::piecewise_construct, std::make_tuple(3, "abcd"), std::make_tuple());
 }
 TEST_CASE("pairs of strings and containers", "[intrusive::pair]") {

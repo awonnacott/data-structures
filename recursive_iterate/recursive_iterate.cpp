@@ -1,4 +1,4 @@
-// Compile with gcc a.cpp -fconcepts -std=c++2a -Wall -Wextra -Werror -lstdc++
+// Compile with g++ a.cpp -fconcepts -std=c++2a -Wall -Wextra -Werror -lstdc++
 
 #include <algorithm>
 #include <iostream>
@@ -11,11 +11,6 @@
 using namespace std;
 
 // begin C++20 stuff not yet in GCC
-template <class T> struct remove_cvref {
-  typedef remove_cv_t<remove_reference_t<T>> type;
-};
-template <class T> using remove_cvref_t = typename remove_cvref<T>::type;
-
 template <typename T, typename U> concept bool Same = is_same_v<T, U>;
 // end C++20 stuff
 
@@ -45,7 +40,7 @@ recursive_iterate(CONTAINER container) {
     return vector<CONTENTS>(container.begin(), container.end());
   } else {
     vector<CONTENTS> contents;
-    for (Contents<CONTAINER> &subcontainer : container) {
+    for (Contents<CONTAINER>& subcontainer : container) {
       vector<CONTENTS> subcontents = recursive_iterate<CONTENTS>(subcontainer);
       contents.insert(contents.end(), subcontents.begin(), subcontents.end());
     }
@@ -61,8 +56,7 @@ int main() {
        << endl;
 
   // Traditional flatten (int list list -> int list)
-  vector<vector<int>> two_d{vector<int>{1, 2, 3},
-                            vector<int>{4, 5, 6},
+  vector<vector<int>> two_d{vector<int>{1, 2, 3}, vector<int>{4, 5, 6},
                             vector<int>{7, 8, 9}};
   cout << equal(begin(flat), end(flat), begin(recursive_iterate<int>(two_d)))
        << endl;

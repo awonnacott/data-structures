@@ -9,7 +9,6 @@ using std::endl;
 using namespace ds;
 TEST_CASE("kvpq<int>", "[kvpq]") {
   auto p = kvpq<int, std::string>();
-  REQUIRE(1 + 1 == 2);
   REQUIRE(p.begin() == p.begin());
   REQUIRE(p.begin() == p.end());
   REQUIRE(++p.begin() - 1 == p.begin());
