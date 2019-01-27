@@ -87,8 +87,17 @@ class kvpq {
 
  public:
   using key_type = K;
+  using value_compare = C;
   using value_type = std::pair<K, V>;
   using mapped_type = V;
+  using size_type = size_t;
+  using difference_type = ptrdiff_t;
+  using hasher = H;
+  using key_equal = K;
+  using reference = value_type&;
+  using const_reference = const value_type&;
+  using pointer = value_type*;
+  using const_pointer = const value_type*;
   using iterator = kvpq_iterator<kvpq>;
   using const_iterator = kvpq_const_iterator<kvpq>;
   friend iterator;
@@ -251,12 +260,18 @@ class kvpq {
   friend void swap(const kvpq& lhs, const kvpq& rhs) { return lhs.swap(rhs); }
 
  private:
-  [[nodiscard]] inline size_t prev(size_t i) { return (i - 1) & _bucket_mask; }
   [[nodiscard]] inline size_t next(size_t i) { return (i + 1) & _bucket_mask; }
   [[nodiscard]] inline bool free(size_t i) { return !_offset[i]; }
-  inline size_t hash_at(size_t i) { return next(_offset[i] + i); }
-  inline void set_hash_at(size_t i, size_t h) { _offset[i] = prev(h - i); }
+  inline size_t hash_at(size_t i) { return _offset[i] + i + 1; }
+  inline void set_hash_at(size_t i, size_t h) { _offset[i] = h - i - 1; }
   inline void clear_hash_at(size_t i) { set_hash_at(i, next(i)); }
+  [[nodiscard]] static inline size_t parent(size_t i) {
+    return ((i + 1) >> 1) - 1;
+  }
+  [[nodiscard]] static inline size_t lchild(size_t i) {
+    return ((i + 1) << 1) - 1;
+  }
+  [[nodiscard]] static inline size_t rchild(size_t i) { return (i + 1) << 1; }
 
   struct Mask {
     Mask(size_t i) : _i(size_t(-1) >> __builtin_clzl(i)) {}
@@ -419,7 +434,7 @@ kvpq<K, V, H, EQ, C>::emplace(ARGS&&... args) {
   reserve(_size + 1);
   size_t h = _hash(table_entry->first), i = h;
   while (!free(i)) {
-    if (hash_at(i) == h && _table[i].first == table_entry.first) {
+    if (hash_at(i) == h && _key_eq(_table[i].first, table_entry.first)) {
       return {_table[i].other(), false};
     }
     i = next(i);
@@ -427,8 +442,20 @@ kvpq<K, V, H, EQ, C>::emplace(ARGS&&... args) {
 
   set_hash_at(i, h);
   new (_table + i) table_type(move(table_entry));
-  size_t j = -1; // TODO
-  new (_heap + j) heap_type(move(heap_entry));
+  size_t j = _size;
+  while (j && _comp(_heap[parent(j)].other()->first, table_entry.first)) {
+    if (j == _size) {
+      new (_heap + j) heap_type(move(_heap[parent(j)]));
+    } else {
+      _heap[j] = move(_heap[parent(j)]);
+    }
+    j = parent(j);
+  }
+  if (j == _size) {
+    new (_heap + j) heap_type(move(heap_entry));
+  } else {
+    _heap[j] = move(heap_entry);
+  }
   ++_size;
   return {_heap + j, true};
 }
@@ -451,7 +478,32 @@ kvpq<K, V, H, EQ, C>::try_emplace(K&& k, ARGS&&... args) {
 template <typename K, typename V, typename H, typename EQ, typename C>
 kvpq_iterator<kvpq<K, V, H, EQ, C>>
 kvpq<K, V, H, EQ, C>::erase(kvpq_const_iterator<kvpq<K, V, H, EQ, C>> pos) {
-  // TODO
+  const table_type& table_entry = *pos;
+  size_t j = table_entry.other() - _heap;
+  while (j) {
+    _heap[j] = move(_heap[parent(j)]);
+    j = parent(j);
+  }
+  while (lchild(j) < _size) {
+    if (rchild(j) < _size && _comp(lchild(j), rchild(j))) {
+      _heap[j] = move(_heap[rchild(j)]);
+      j = rchild(j);
+    } else {
+      _heap[j] = move(_heap[lchild(j)]);
+      j = lchild(j);
+    }
+  }
+  _heap[j].~heap_type();
+
+  size_t i = &table_entry - _table;
+  for (size_t j = i; !free(j); j = next(j)) {
+    if (((hash_at(j) - i) & _bucket_mask) < ((hash_at(i) - i) & _bucket_mask)) {
+      _table[i] = move(_table[j]);
+      set_hash_at(i, hash_at(j));
+      i = j;
+    }
+  }
+  _table[i].~table_type();
 }
 template <typename K, typename V, typename H, typename EQ, typename C>
 size_t kvpq<K, V, H, EQ, C>::erase(const K& k) {
@@ -465,7 +517,15 @@ size_t kvpq<K, V, H, EQ, C>::erase(const K& k) {
 
 template <typename K, typename V, typename H, typename EQ, typename C>
 void kvpq<K, V, H, EQ, C>::swap(kvpq& o) {
-  // TODO
+  using std::swap;
+  swap(_bucket_mask, o._bucket_mask);
+  swap(_hash, o._hash);
+  swap(_key_equal, o._key_equal);
+  swap(_comp, o._comp);
+  swap(_size, o._size);
+  swap(_offset, o._offset);
+  swap(_table, o._table);
+  swap(_heap, o._heap);
 }
 
 // merge(1)
@@ -478,11 +538,11 @@ void kvpq<K, V, H, EQ, C>::merge(const kvpq<K, V, H2, P2, C2>& o) {
 template <typename K, typename V, typename H, typename EQ, typename C>
 template <typename H2, typename P2, typename C2>
 void kvpq<K, V, H, EQ, C>::merge(kvpq<K, V, H2, P2, C2>&& o) {
-  // TODO
+  for (std::pair<K, V>& elt : o) { insert(move(elt)); }
+  o.clear();
 }
 
 // Lookup
-
 template <typename K, typename V, typename H, typename EQ, typename C>
 V& kvpq<K, V, H, EQ, C>::at(const K& k) {
   if (auto it = find(k); it == end()) {
@@ -518,7 +578,9 @@ kvpq_const_iterator<kvpq<K, V, H, EQ, C>>
 kvpq<K, V, H, EQ, C>::find(const K& k) const {
   size_t h = _hash(k);
   for (size_t i = h; !free(i); i = next(i)) {
-    if (hash_at(i) == h && _table[i].first == k) { return _table[i].other(); }
+    if (hash_at(i) == h && _key_eq(_table[i].first, k)) {
+      return _table[i].other();
+    }
   }
   return end();
 }
@@ -555,10 +617,13 @@ void kvpq<K, V, H, EQ, C>::reserve(size_t count) {
 template <typename K, typename V, typename H, typename EQ, typename C>
 bool kvpq<K, V, H, EQ, C>::operator==(const kvpq<K, V, H, EQ, C>& o) {
   if (this == &o) { return true; }
-  if (size() != o.size()) { return false; }
+  if (_hash != o._hash || _key_equal != o._key_equal || _comp != o._comp ||
+      _size != o._size) {
+    return false;
+  }
   for (auto it = o.begin(); it != o.end(); ++o) {
     if (auto item = find(it->first);
-        item == end() || item->second != it->second) {
+        item == end() || !_key_eq(item->second, it->second)) {
       return false;
     }
   }
