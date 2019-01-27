@@ -7,12 +7,10 @@ using a = std::monostate;
 using std::cout;
 using std::endl;
 using namespace ds;
-TEST_CASE("", "[adding]") {
+TEST_CASE("kvpq<int>", "[kvpq]") {
   auto p = kvpq<int, std::string>();
   REQUIRE(1 + 1 == 2);
-  cout << sizeof(int) << endl;
-  cout << sizeof(kvpq<int, int> *) << endl;
-  cout << sizeof(kvpq<a, int>) << endl;
-  cout << sizeof(a) << endl;
-  cout << sizeof(kvpq<int, a>) << endl;
+  REQUIRE(p.begin() == p.begin());
+  REQUIRE(p.begin() == p.end());
+  REQUIRE(++p.begin() - 1 == p.begin());
 }

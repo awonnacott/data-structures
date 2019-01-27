@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS=-std=c++2a -Wall -Wextra -pedantic
+CFLAGS=-std=c++2a -Wall -Wextra -pedantic -g
 
 all: tests
 

@@ -9,31 +9,13 @@ namespace intrusive {
 
 template <typename A, typename B> class pair {
   struct private_construct_t {};
+  friend class pair<B, A>;
 
 public:
-  // (1)
-  constexpr pair() = default;
-  // (2)
-  constexpr pair(const A &a, const B &b)
-      : _a(a), _other(new pair<B, A>(private_construct_t{}, *this,
-                                     std::forward_as_tuple(b))) {}
-  // (3) TODO: is_constructible_v
-  constexpr pair(A &&a, B &&b)
-      : _a(std::move(a)),
-        _other(new pair<B, A>(private_construct_t{}, *this,
-                              std::forward_as_tuple(std::move(b)))) {}
   // (47) TODO: is_constructible_v
   constexpr pair(const pair &p) = delete;
   // (58) TODO: is_constructible_v
   constexpr pair(pair &&p);
-  // (6)
-  // make_from_tuple is OK due to guaranteed copy elision
-  template <typename... LHS, typename... RHS>
-  constexpr pair(std::piecewise_construct_t, std::tuple<LHS...> lhs,
-                 std::tuple<RHS...> rhs)
-      : _a(std::make_from_tuple(std::forward(lhs))),
-        _other(
-            new pair<B, A>(private_construct_t{}, *this, std::forward(rhs))) {}
 
   ~pair();
 
@@ -44,33 +26,40 @@ public:
 
   constexpr void swap(pair &);
 
-  template <typename AA, typename BB>
-  friend constexpr std::pair<pair<AA, BB>, pair<BB, AA>> make_pair(const AA &,
-                                                                   const BB &);
+  // constexpr void link(pair<B, A> &);
 
-  constexpr bool operator==(const pair &);
-  constexpr bool operator!=(const pair &o) { return !(*this == o); }
-  constexpr bool operator<(const pair &);
-  constexpr bool operator<=(const pair &o) { return !(o < *this); }
-  constexpr bool operator>(const pair &o) { return o < *this; }
-  constexpr bool operator>=(const pair &o) { return !(*this < o); }
+  template <typename AA, typename BB>
+  static constexpr std::pair<pair, pair<B, A>> make(AA &&, BB &&);
+  template <typename... AARGS, typename... BARGS>
+  static constexpr std::pair<pair, pair<B, A>>
+  make(std::piecewise_construct_t, std::tuple<AARGS...>, std::tuple<BARGS...>);
+
+  constexpr bool operator==(const pair &) const;
+  constexpr bool operator!=(const pair &o) const { return !(*this == o); }
+  constexpr bool operator<(const pair &) const;
+  constexpr bool operator<=(const pair &o) const { return !(o < *this); }
+  constexpr bool operator>(const pair &o) const { return o < *this; }
+  constexpr bool operator>=(const pair &o) const { return !(*this < o); }
 
   // std::swap()
-  friend void swap(pair &lhs, pair &rhs) { lhs.swap(rhs); }
+  constexpr friend void swap(pair &lhs, pair &rhs) { lhs.swap(rhs); }
 
-  constexpr operator A() { return _a; }
+  constexpr A &get() { return _a; }
+  constexpr const A &get() const { return _a; }
+  constexpr operator A &() { return _a; }
+  constexpr operator const A &() const { return _a; }
+  constexpr A &operator*() { return _a; }
+  constexpr const A &operator*() const { return _a; }
+  constexpr A *operator->() { return &_a; }
+  constexpr const A *operator->() const { return &_a; }
 
-  pair<B, A> &operator*() { return *_other; }
-  const pair<B, A> &operator*() const { return *_other; }
+  constexpr pair<B, A> *other() { return _other; }
+  constexpr const pair<B, A> *other() const { return _other; }
 
 private:
-  // make_from_tuple is OK due to guaranteed copy elision
+  // (1)
   template <typename... ARGS>
-  constexpr pair(private_construct_t, pair<B, A> &other,
-                 std::tuple<ARGS...> args)
-      : _a(std::make_from_tuple<A, std::tuple<ARGS...>>(
-            std::forward<std::tuple<ARGS...>>(args))),
-        _other(&other) {}
+  explicit constexpr pair(ARGS... args) : _a(std::forward<ARGS>(args)...) {}
 
   [[no_unique_address]] A _a;
   pair<B, A> *_other;
@@ -94,6 +83,12 @@ template <typename A, typename B> pair<A, B>::~pair() {
 // =(34)
 template <typename A, typename B>
 constexpr pair<A, B> &pair<A, B>::operator=(pair &&p) {
+  if (&p == this) {
+    return *this;
+  }
+  if (&p == _other) {
+    _other = p._other = nullptr;
+  }
   if (_other) {
     _other->_other = nullptr;
   }
@@ -103,39 +98,68 @@ constexpr pair<A, B> &pair<A, B>::operator=(pair &&p) {
     p._other = nullptr;
     _other->_other = this;
   }
+  return *this;
 }
 
 template <typename A, typename B> constexpr void pair<A, B>::swap(pair &p) {
+  if (&p == this) {
+    return;
+  }
   using std::swap;
-  swap(_other, p->_other);
   swap(_a, p._a);
+  if (&p == _other) {
+    return;
+  }
+  swap(_other, p._other);
+  if (_other) {
+    _other->_other = this;
+  }
+  if (p._other) {
+    p._other->_other = &p;
+  }
 }
 
 template <typename A, typename B>
-constexpr std::pair<pair<A, B>, pair<B, A>> make_pair(const A &a, const B &b) {
-  auto p = pair<A, B>(a, b);
-  return {p, *p};
+template <typename AA, typename BB>
+constexpr std::pair<pair<A, B>, pair<B, A>> pair<A, B>::make(AA &&a, BB &&b) {
+  auto lhs = pair<A, B>(std::forward<AA>(a));
+  auto rhs = pair<B, A>(std::forward<BB>(b));
+  lhs._other = &rhs;
+  rhs._other = &lhs;
+  return std::make_pair(std::move(lhs), std::move(rhs));
 }
 
 template <typename A, typename B>
-constexpr bool pair<A, B>::operator==(const pair<A, B> &o) {
+template <typename... AARGS, typename... BARGS>
+constexpr std::pair<pair<A, B>, pair<B, A>>
+pair<A, B>::make(std::piecewise_construct_t, std::tuple<AARGS...> a,
+                 std::tuple<BARGS...> b) {
+  auto lhs = pair<A, B>(std::make_from_tuple<A>(a));
+  auto rhs = pair<B, A>(std::make_from_tuple<B>(b));
+  lhs._other = &rhs;
+  rhs._other = &lhs;
+  return std::make_pair(std::move(lhs), std::move(rhs));
+}
+
+template <typename A, typename B>
+constexpr bool pair<A, B>::operator==(const pair<A, B> &o) const {
   if (this == &o)
     return true;
   if (!(_a == o._a))
     return false;
   if (_other == o._other)
     return true;
-  return _other && o._other && _other->_a == o->_a;
+  return _other && o._other && _other->_a == o._other->_a;
 }
 
 template <typename A, typename B>
-constexpr bool pair<A, B>::operator<(const pair<A, B> &o) {
+constexpr bool pair<A, B>::operator<(const pair<A, B> &o) const {
   if (_a < o._a)
     return true;
   if (o._a < _a)
     return false;
   if (!_other && !o._other)
     return false;
-  return !_other || (o._other && _other->b < o->b);
+  return !_other || (o._other && _other->b < o._other->b);
 }
 } // namespace intrusive
