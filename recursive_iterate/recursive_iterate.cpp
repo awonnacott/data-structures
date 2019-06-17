@@ -1,5 +1,7 @@
 #include "recursive_iterate.hpp"
 
+using namespace std;
+
 // Demo recursive flatten
 int main() {
   // The trivial flatten (int list -> int list)

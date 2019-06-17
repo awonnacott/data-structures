@@ -1,7 +1,9 @@
 CC=g++
-CFLAGS=-std=c++2a -Wall -Wextra -pedantic -g
+CFLAGS=-std=c++2a -Wall -Wextra -pedantic -g --coverage
 
 all: tests
+
+test: kvpq.hpp.gcov
 
 tests: tests_main.o tests_kvpq.o
 	$(CC) $(CFLAGS) tests_main.o tests_kvpq.o -o tests
@@ -13,7 +15,8 @@ tests_kvpq.o: tests_kvpq.cpp kvpq.hpp
 	$(CC) $(CFLAGS) tests_kvpq.cpp -c
 
 clean:
-	rm -f tests *.o
+	rm -f tests *.o *.gcov *.gcda *.gcno
 
-test: all
+kvpq.hpp.gcov: all
 	./tests
+	gcov tests_kvpq.cpp -jmafr
