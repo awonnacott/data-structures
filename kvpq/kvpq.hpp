@@ -447,7 +447,7 @@ kvpq<K, V, H, EQ, C>::emplace(ARGS&&... args) {
 }
 template <typename K, typename V, typename H, typename EQ, typename C>
 kvpq_iterator<kvpq<K, V, H, EQ, C>>
-kvpq<K, V, H, EQ, C>::erase(kvpq_const_iterator<kvpq<K, V, H, EQ, C>> pos) {
+kvpq<K, V, H, EQ, C>::erase(const_iterator pos) {
   const table_type& table_entry = *pos;
   size_t j = table_entry.other() - _heap;
   while (j) {
@@ -563,7 +563,7 @@ void kvpq<K, V, H, EQ, C>::reserve(size_t count) {
 
 // Non-member functions
 template <typename K, typename V, typename H, typename EQ, typename C>
-bool kvpq<K, V, H, EQ, C>::operator==(const kvpq<K, V, H, EQ, C>& o) {
+bool kvpq<K, V, H, EQ, C>::operator==(const kvpq& o) {
   if (this == &o) { return true; }
   if (_hash != o._hash || _key_equal != o._key_equal || _comp != o._comp ||
       _size != o._size) {

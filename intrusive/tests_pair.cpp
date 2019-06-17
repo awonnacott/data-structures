@@ -3,6 +3,7 @@
 #include <variant>
 
 using namespace intrusive;
+
 TEST_CASE("pairs of ints", "[intrusive::pair]") {
   auto [p, q] = pair<int, int>::make(3, 4);
   REQUIRE(p == 3);
@@ -21,6 +22,7 @@ TEST_CASE("pairs of ints", "[intrusive::pair]") {
   REQUIRE(r.other() == &s);
   REQUIRE(s.other() == &r);
 }
+
 TEST_CASE("pairs of monostates", "[intrusive::pair]") {
   REQUIRE(sizeof(pair<int, std::monostate>) == 2 * sizeof(size_t));
   REQUIRE(sizeof(pair<std::monostate, int>) == sizeof(size_t));
@@ -30,11 +32,13 @@ TEST_CASE("pairs of monostates", "[intrusive::pair]") {
   pair<std::pair<int, std::string>, std::monostate>::make(
       std::piecewise_construct, std::make_tuple(3, "abcd"), std::make_tuple());
 }
+
 TEST_CASE("pairs of strings and containers", "[intrusive::pair]") {
   auto [p, q] = pair<std::string, std::string>::make("Left", "Right");
   REQUIRE(p.get() == "Left");
   REQUIRE("Right" == q.get());
 }
+
 TEST_CASE("swapping", "[intrusive::pair]") {
   auto [p, q] = pair<int, int>::make(3, 4);
   auto [r, s] = pair<int, int>::make(5, 6);
