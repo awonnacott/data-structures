@@ -6,6 +6,8 @@ COVFLAGS = -af
 CC = clang++
 CFLAGS = -std=c++2a -Wall -Wextra -pedantic -g
 
+HEADERS = pair.hpp pair_fwd.hpp
+
 all: tests
 
 test: all
@@ -17,7 +19,7 @@ tests: tests_main.o tests_pair.o
 tests_main.o: tests_main.cpp
 	$(CC) $(CFLAGS) $< -c
 
-tests_%.o: tests_%.cpp pair.hpp
+tests_%.o: tests_%.cpp $(HEADERS)
 	$(CC) $(CFLAGS) $(CCOVFLAGS) $< -c
 
 clean:

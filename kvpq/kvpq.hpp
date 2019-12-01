@@ -1,6 +1,7 @@
 // A combination of an unordered map and a priority queue
 #pragma once
 
+#include <cassert>          // assert
 #include <cmath>            // ceil, pow, sqrt
 #include <cstddef>          // ptrdiff_t, size_t
 #include <functional>       // equal_to, hash, less
@@ -40,9 +41,9 @@ template <typename KVPQ> struct kvpq_const_iterator {
   bool operator>(const ci& o) const { return elt_ > o.elt_; }
   bool operator>=(const ci& o) const { return elt_ >= o.elt_; }
 
-  const value_type& operator*() const { return elt_->other()->get(); }
-  const typename KVPQ::table_type& operator->() const { return *elt_->other(); }
-  const value_type& operator[](size_type n) const { return *(*this + n); }
+  reference operator*() const { return elt_->other()->get(); }
+  const auto& operator-> () const { return *elt_->other(); }
+  reference operator[](size_type n) const { return *(*this + n); }
 
   ci& operator++() {
     ++elt_;
@@ -91,9 +92,9 @@ template <typename KVPQ> struct kvpq_iterator : kvpq_const_iterator<KVPQ> {
   operator const_iterator&() { return *this; }
   operator const const_iterator&() const { return *this; }
 
-  typename KVPQ::value_type& operator*() { return this->elt_->other()->get(); }
-  typename KVPQ::table_type& operator->() { return this->elt_->other(); }
-  typename KVPQ::value_type& operator[](size_type n) { return *(*this + n); }
+  reference operator*() { return elt()->other()->get(); }
+  auto& operator-> () { return *elt()->other(); }
+  reference operator[](size_type n) { return *(*this + n); }
 
   i& operator++() {
     ++ci();
@@ -131,7 +132,11 @@ template <typename KVPQ> struct kvpq_iterator : kvpq_const_iterator<KVPQ> {
   const const_iterator& ci() const {
     return static_cast<const const_iterator&>(*this);
   }
+  typename KVPQ::heap_type* elt() const {
+    return const_cast<typename KVPQ::heap_type*>(this->elt_);
+  }
   explicit kvpq_iterator(const_iterator&& o) : const_iterator(o) {}
+  friend KVPQ;
 }; // namespace ds
 
 template <typename K, typename V, typename H, typename EQ, typename C>
@@ -187,7 +192,7 @@ class kvpq {
                 size_type bucket_count = DEFAULT_BUCKET_COUNT,
                 const H& hash = H(), const EQ& key_equal = EQ(),
                 const C& comp = C())
-      : kvpq(std::max(bucket_count, size_t(get_bucket_mask(
+      : kvpq(std::max(bucket_count, size_type(get_bucket_mask(
                                         init.size(), DEFAULT_MAX_LOAD_FACTOR)) +
                                         1),
              init.size, hash, key_equal, comp) {
@@ -318,10 +323,13 @@ class kvpq {
   const std::pair<K, V>& top() const { return *begin(); }
   V& at(const K&);
   const V& at(const K&) const;
+  // TODO: create if not found
   V& operator[](const K& k) { return find(k)->second; }
   V& operator[](K&& k) { return find(k)->second; }
   size_type count(const K& k) const { return contains(k); }
-  iterator find(const K& k) { return const_cast<const kvpq&>(*this).find(k); }
+  iterator find(const K& k) {
+    return iterator(const_cast<const kvpq&>(*this).find(k));
+  }
   const_iterator find(const K&) const;
   bool contains(const K& k) const { return find(k) != end(); }
 
@@ -402,7 +410,7 @@ class kvpq {
   get_bucket_mask(size_type size, float load_factor) {
     return size
                ? Mask(
-                     size_t(std::ceil(
+                     size_type(std::ceil(
                          size / (1. - 1. / std::sqrt(load_factor * 2. + 1.)))) -
                      1)
                : Mask(1);
@@ -410,7 +418,7 @@ class kvpq {
   [[nodiscard]] static inline size_type get_capacity(float load_factor,
                                                      Mask bucket_mask) {
     return (1. - 1. / std::sqrt(load_factor * 2. + 1.)) *
-           (size_t(bucket_mask) + 1);
+           (size_type(bucket_mask) + 1);
   }
   void resize(Mask bucket_mask);
 
@@ -433,7 +441,7 @@ kvpq<K, V, H, EQ, C>::kvpq(size_type bucket_count, const H& hash,
     : hash_(hash), key_equal_(key_equal), comp_(comp),
       bucket_mask_(bucket_count - 1),
       capacity_(get_capacity(max_load_factor_, bucket_mask_)) {
-  offset_ = new size_type[capacity()];
+  offset_ = new size_type[capacity()]();
   table_ = (table_type*)operator new[](capacity() * sizeof(table_type));
   heap_ = (heap_type*)operator new[](capacity() * sizeof(heap_type));
 }
@@ -451,6 +459,7 @@ kvpq<K, V, H, EQ, C>::kvpq(const kvpq& o)
     new (table_ + j) table_type(move(table_entry));
     new (heap_ + i) heap_type(move(heap_entry));
   }
+  assert(capacity_ >= size_);
 }
 
 // (4)
@@ -496,6 +505,7 @@ kvpq<K, V, H, EQ, C>& kvpq<K, V, H, EQ, C>::operator=(const kvpq& o) {
     new (table_ + j) table_type(move(table_entry));
     new (heap_ + i) heap_type(move(heap_entry));
   }
+  assert(capacity_ >= size_);
 
   return *this;
 }
@@ -541,12 +551,13 @@ template <typename K, typename V, typename H, typename EQ, typename C>
 template <typename... ARGS>
 std::pair<kvpq_iterator<kvpq<K, V, H, EQ, C>>, bool>
 kvpq<K, V, H, EQ, C>::emplace(ARGS&&... args) {
-  auto [table_entry, heap_entry] = table_type::make(forward(args)...);
+  auto [table_entry, heap_entry] =
+      table_type::make(value_type(std::forward<ARGS>(args)...));
   reserve(size_ + 1);
   size_type h = hash_(table_entry->first), i = h;
   while (!free(i)) {
-    if (hash_at(i) == h && key_eq_(table_[i].first, table_entry.first)) {
-      return {table_[i].other(), false};
+    if (hash_at(i) == h && key_equal_(table_[i]->first, table_entry->first)) {
+      return {iterator(table_[i].other()), false};
     }
     i = next(i);
   }
@@ -554,7 +565,8 @@ kvpq<K, V, H, EQ, C>::emplace(ARGS&&... args) {
   set_hash_at(i, h);
   new (table_ + i) table_type(move(table_entry));
   size_type j = size_;
-  while (j && comp_(heap_[parent(j)].other()->first, table_entry.first)) {
+  while (j &&
+         comp_(heap_[parent(j)].other()->get().first, table_entry->first)) {
     if (j == size_) {
       new (heap_ + j) heap_type(move(heap_[parent(j)]));
     } else {
@@ -568,7 +580,8 @@ kvpq<K, V, H, EQ, C>::emplace(ARGS&&... args) {
     heap_[j] = move(heap_entry);
   }
   ++size_;
-  return {heap_ + j, true};
+  assert(capacity_ >= size_);
+  return {iterator(heap_ + j), true};
 }
 template <typename K, typename V, typename H, typename EQ, typename C>
 kvpq_iterator<kvpq<K, V, H, EQ, C>>
@@ -659,8 +672,8 @@ kvpq_const_iterator<kvpq<K, V, H, EQ, C>>
 kvpq<K, V, H, EQ, C>::find(const K& k) const {
   size_type h = hash_(k);
   for (size_type i = h; !free(i); i = next(i)) {
-    if (hash_at(i) == h && key_eq_(table_[i].first, k)) {
-      return table_[i].other();
+    if (hash_at(i) == h && key_equal_(table_[i]->first, k)) {
+      return const_iterator(table_[i].other());
     }
   }
   return end();
@@ -688,6 +701,7 @@ void kvpq<K, V, H, EQ, C>::resize(Mask bucket_mask) {
 
   // buckets_ = buckets; (operator= for buckets calls destructor?)
   // capacity_ = get_capacity(max_load_factor_, bucket_mask_);
+  assert(capacity_ >= size_);
 }
 
 // Non-member functions
@@ -698,6 +712,7 @@ bool kvpq<K, V, H, EQ, C>::operator==(const kvpq& o) const {
       size_ != o.size_) {
     return false;
   }
+  // TODO: use knowledge of hashes to avoid rehashing
   for (auto it = o.begin(); it != o.end(); ++o) {
     if (auto item = find(it->first);
         item == end() || !key_eq_(item->second, it->second)) {

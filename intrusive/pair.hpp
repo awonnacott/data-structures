@@ -26,8 +26,8 @@ template <typename A, typename B> class pair {
 
   constexpr void swap(pair&);
 
-  template <typename AA, typename BB>
-  static constexpr std::pair<pair, pair<B, A>> make(AA&&, BB&& = BB());
+  template <typename AA = A, typename BB = B>
+  static constexpr std::pair<pair, pair<B, A>> make(AA&& = AA(), BB&& = BB());
   template <typename... AARGS, typename... BARGS>
   static constexpr std::pair<pair, pair<B, A>> make(std::piecewise_construct_t,
                                                     std::tuple<AARGS...>,
@@ -82,7 +82,9 @@ template <typename A, typename B> pair<A, B>::~pair() {
 template <typename A, typename B>
 constexpr pair<A, B>& pair<A, B>::operator=(pair&& p) {
   if (&p == this) { return *this; }
-  if (&p == other_) { other_ = p.other_ = nullptr; }
+  if constexpr (std::is_same_v<A, B>) {
+    if (p.other_ == this) { other_ = p.other_ = nullptr; }
+  }
   if (other_) { other_->other_ = nullptr; }
   other_ = p.other_;
   a_ = std::move(p.a_);
