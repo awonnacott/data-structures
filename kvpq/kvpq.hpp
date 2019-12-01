@@ -26,7 +26,8 @@ template <typename KVPQ> struct kvpq_const_iterator {
   using iterator_category = std::random_access_iterator_tag;
 
   kvpq_const_iterator() = delete;
-  kvpq_const_iterator(const typename KVPQ::heap_type* elt) : _elt(elt) {}
+  explicit kvpq_const_iterator(const typename KVPQ::heap_type* elt)
+      : _elt(elt) {}
 
   bool operator==(const ci& o) const { return _elt == o._elt; }
   bool operator!=(const ci& o) const { return _elt != o._elt; }
@@ -39,12 +40,30 @@ template <typename KVPQ> struct kvpq_const_iterator {
   const typename KVPQ::table_type& operator->() const { return *_elt->other(); }
   const value_type& operator[](size_t n) const { return *(*this + n); }
 
-  ci operator++() { return ci(++_elt); }
-  ci operator++(int) { return ci(_elt++); }
-  ci operator--() { return ci(--_elt); }
-  ci operator--(int) { return ci(_elt--); }
-  ci operator+=(ptrdiff_t n) { return ci(_elt += n); }
-  ci operator-=(ptrdiff_t n) { return ci(_elt -= n); }
+  ci& operator++() {
+    ++_elt;
+    return *this;
+  }
+  ci& operator++(int) {
+    _elt++;
+    return *this;
+  }
+  ci& operator--() {
+    --_elt;
+    return *this;
+  }
+  ci& operator--(int) {
+    _elt--;
+    return *this;
+  }
+  ci& operator+=(ptrdiff_t n) {
+    _elt += n;
+    return *this;
+  }
+  ci& operator-=(ptrdiff_t n) {
+    _elt -= n;
+    return *this;
+  }
   ci operator+(ptrdiff_t n) const { return ci(_elt + n); }
   friend ci operator+(ptrdiff_t n, const ci& it) { return it + n; }
   ci operator-(ptrdiff_t n) const { return ci(_elt - n); }
@@ -56,28 +75,51 @@ template <typename KVPQ> struct kvpq_const_iterator {
 
 template <typename KVPQ> struct kvpq_iterator : kvpq_const_iterator<KVPQ> {
   using i = kvpq_iterator;
-  using ci = kvpq_const_iterator<KVPQ>;
+  using const_iterator = kvpq_const_iterator<KVPQ>;
 
-  kvpq_iterator(typename KVPQ::heap_type* elt) : ci(elt) {}
-  operator ci&() { return ci(*this); }
-  operator const ci&() const { return ci(*this); }
+  explicit kvpq_iterator(typename KVPQ::heap_type* elt) : const_iterator(elt) {}
+  operator const_iterator&() { return *this; }
+  operator const const_iterator&() const { return *this; }
 
   typename KVPQ::value_type& operator*() { return this->_elt->other()->get(); }
   typename KVPQ::table_type& operator->() { return this->_elt->other(); }
   typename KVPQ::value_type& operator[](size_t n) { return *(*this + n); }
 
-  i operator++() { return ++ci(*this); }
-  i operator++(int) { return ci(*this)++; }
-  i operator--() { return --ci(*this); }
-  i operator--(int) { return ci(*this)--; }
-  i operator+=(ptrdiff_t n) { return ci(*this) += n; }
-  i operator-=(ptrdiff_t n) { return ci(*this) -= n; }
-  i operator+(ptrdiff_t n) const { return ci(*this) + n; }
+  i& operator++() {
+    ++ci();
+    return *this;
+  }
+  i& operator++(int) {
+    ci()++;
+    return *this;
+  }
+  i& operator--() {
+    --ci();
+    return *this;
+  }
+  i& operator--(int) {
+    ci()--;
+    return *this;
+  }
+  i& operator+=(ptrdiff_t n) {
+    ci() += n;
+    return *this;
+  }
+  i& operator-=(ptrdiff_t n) {
+    ci() -= n;
+    return *this;
+  }
+  i operator+(ptrdiff_t n) const { return i(ci() + n); }
   friend i operator+(ptrdiff_t n, const i& it) { return it + n; }
-  i operator-(ptrdiff_t n) const { return ci(*this) - n; }
+  i operator-(ptrdiff_t n) const { return i(ci() - n); }
+  ptrdiff_t operator-(const const_iterator& it) const { return ci() - it.ci(); }
 
  private:
-  kvpq_iterator(ci&& o) : ci(o) {}
+  const_iterator& ci() { return static_cast<const_iterator&>(*this); }
+  const const_iterator& ci() const {
+    return static_cast<const const_iterator&>(*this);
+  }
+  explicit kvpq_iterator(const_iterator&& o) : const_iterator(o) {}
 }; // namespace ds
 
 template <typename K, typename V, typename H, typename EQ, typename C>
@@ -138,11 +180,11 @@ class kvpq {
   }
 
   // Iterators
-  iterator begin() noexcept { return _heap; }
-  const_iterator begin() const noexcept { return _heap; }
+  iterator begin() noexcept { return iterator(_heap); }
+  const_iterator begin() const noexcept { return const_iterator(_heap); }
   const_iterator cbegin() const noexcept { return begin(); }
-  iterator end() noexcept { return _heap + _size; }
-  const_iterator end() const noexcept { return _heap + _size; }
+  iterator end() noexcept { return iterator(_heap + _size); }
+  const_iterator end() const noexcept { return const_iterator(_heap + _size); }
   const_iterator cend() const noexcept { return end(); }
 
   // Modifiers
@@ -289,7 +331,7 @@ class kvpq {
   [[nodiscard]] static inline size_t rchild(size_t i) { return (i + 1) << 1; }
 
   struct Mask {
-    Mask(size_t i) : _i(size_t(-1) >> __builtin_clzl(i)) {}
+    explicit Mask(size_t i) : _i(size_t(-1) >> __builtin_clzl(i)) {}
     Mask& operator=(size_t i) {
       _i = size_t(-1) >> __builtin_clzl(i);
       return *this;
@@ -449,31 +491,35 @@ template <typename K, typename V, typename H, typename EQ, typename C>
 kvpq_iterator<kvpq<K, V, H, EQ, C>>
 kvpq<K, V, H, EQ, C>::erase(const_iterator pos) {
   const table_type& table_entry = *pos;
-  size_t j = table_entry.other() - _heap;
-  while (j) {
-    _heap[j] = move(_heap[parent(j)]);
-    j = parent(j);
-  }
-  while (lchild(j) < _size) {
-    if (rchild(j) < _size && _comp(lchild(j), rchild(j))) {
-      _heap[j] = move(_heap[rchild(j)]);
-      j = rchild(j);
-    } else {
-      _heap[j] = move(_heap[lchild(j)]);
-      j = lchild(j);
+  {
+    size_t j = table_entry.other() - _heap;
+    while (j) {
+      _heap[j] = move(_heap[parent(j)]);
+      j = parent(j);
     }
-  }
-  _heap[j].~heap_type();
-
-  size_t i = &table_entry - _table;
-  for (size_t j = i; !free(j); j = next(j)) {
-    if (((hash_at(j) - i) & _bucket_mask) < ((hash_at(i) - i) & _bucket_mask)) {
-      _table[i] = move(_table[j]);
-      set_hash_at(i, hash_at(j));
-      i = j;
+    while (lchild(j) < _size) {
+      if (rchild(j) < _size && _comp(lchild(j), rchild(j))) {
+        _heap[j] = move(_heap[rchild(j)]);
+        j = rchild(j);
+      } else {
+        _heap[j] = move(_heap[lchild(j)]);
+        j = lchild(j);
+      }
     }
+    _heap[j].~heap_type();
   }
-  _table[i].~table_type();
+  {
+    size_t i = &table_entry - _table;
+    for (size_t j = i; !free(j); j = next(j)) {
+      if (((hash_at(j) - i) & _bucket_mask) <
+          ((hash_at(i) - i) & _bucket_mask)) {
+        _table[i] = move(_table[j]);
+        set_hash_at(i, hash_at(j));
+        i = j;
+      }
+    }
+    _table[i].~table_type();
+  }
 }
 template <typename K, typename V, typename H, typename EQ, typename C>
 size_t kvpq<K, V, H, EQ, C>::erase(const K& k) {

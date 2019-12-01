@@ -18,7 +18,7 @@ tests_recursive_iterate.o: tests_recursive_iterate.cpp recursive_iterate.hpp
 	$(CC) $(CFLAGS) tests_recursive_iterate.cpp -c
 
 clean:
-	rm -rf tests recursive_iterate *.o
+	rm -rf tests recursive_iterate *.o *.gcda *.gcno *.gcov
 
 recursive_iterate.hpp.gcov: all
 	./tests
