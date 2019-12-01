@@ -58,7 +58,8 @@ template <typename A, typename B> class pair {
  private:
   // (1)
   template <typename... ARGS>
-  explicit constexpr pair(ARGS... args) : a_(std::forward<ARGS>(args)...) {}
+  constexpr explicit pair(ARGS... args)
+      : a_(std::forward<ARGS>(args)...), other_(nullptr) {}
 
   [[no_unique_address]] A a_;
   pair<B, A>* other_;

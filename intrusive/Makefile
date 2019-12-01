@@ -1,22 +1,26 @@
-CC=g++
-CFLAGS=-std=c++2a -Wall -Wextra -pedantic -g --coverage
+CC = clang++
+CFLAGS = -std=c++2a -Wall -Wextra -pedantic -g --coverage
+COV = llvm-cov gcov
+COVFLAGS = -af
 
 all: tests
 
-test: pair.hpp.gcov
+test: all
+	./tests
 
 tests: tests_main.o tests_pair.o
-	$(CC) $(CFLAGS) tests_main.o tests_pair.o -o tests
+	$(CC) $(CFLAGS) $^ -o $@
 
 tests_main.o: tests_main.cpp
-	$(CC) $(CFLAGS) tests_main.cpp -c
+	$(CC) $(CFLAGS) $< -c
 
-tests_pair.o: tests_pair.cpp pair.hpp
-	$(CC) $(CFLAGS) tests_pair.cpp -c
+tests_%.o: tests_%.cpp pair.hpp
+	$(CC) $(CFLAGS) $< -c
 
 clean:
 	rm -f tests *.o *.gcov *.gcda *.gcno
 
-pair.hpp.gcov: all
-	./tests
-	gcov tests_pair.cpp -jmafr
+cov: pair.hpp.gcov
+
+pair.hpp.gcov: test
+	$(COV) $(COVFLAGS) tests_pair.cpp
