@@ -1,7 +1,10 @@
-CC = clang++
-CFLAGS = -std=c++2a -Wall -Wextra -pedantic -g --coverage
 COV = llvm-cov gcov
+CCOVFLAGS = -g -O0 -fprofile-instr-generate -fcoverage-mapping -fprofile-arcs -ftest-coverage
+# --coverage
 COVFLAGS = -af
+
+CC = clang++
+CFLAGS = -std=c++2a -Wall -Wextra -pedantic -g
 
 all: tests
 
@@ -9,16 +12,16 @@ test: all
 	./tests
 
 tests: tests_main.o tests_kvpq.o tests_load_factor.o
-	$(CC) $(CFLAGS) $^ -o $@
+	$(CC) $(CFLAGS) $(CCOVFLAGS) $^ -o $@
 
 tests_main.o: tests_main.cpp
 	$(CC) $(CFLAGS) $< -c
 
 tests_load_factor.o: tests_load_factor.cpp kvpq.hpp
-	$(CC) $(CFLAGS) -Wno-keyword-macro $< -c
+	$(CC) $(CFLAGS) $(CCOVFLAGS) -Wno-keyword-macro $< -c
 
 tests_%.o: tests_%.cpp kvpq.hpp
-	$(CC) $(CFLAGS) $< -c
+	$(CC) $(CFLAGS) $(CCOVFLAGS) $< -c
 
 clean:
 	rm -f tests *.o *.gcov *.gcda *.gcno

@@ -391,6 +391,7 @@ class kvpq {
   };
   [[nodiscard]] static constexpr inline float
   get_load_factor(size_type size, Mask bucket_mask) {
+    // From https://www.cs.tau.ac.il/~zwick/Adv-Alg-2015/Linear-Probing.pdf
     return (std::pow(1. /
                          (1. - float(size) / float(size_type(bucket_mask) + 1)),
                      2) -
@@ -413,11 +414,11 @@ class kvpq {
   }
   void resize(Mask bucket_mask);
 
-  Mask bucket_mask_;
   [[no_unique_address]] H hash_;
   [[no_unique_address]] EQ key_equal_;
   [[no_unique_address]] C comp_;
   float max_load_factor_ = DEFAULT_MAX_LOAD_FACTOR;
+  Mask bucket_mask_;
   size_type capacity_;
   size_type size_ = 0;
   size_type* offset_;
@@ -429,8 +430,9 @@ class kvpq {
 template <typename K, typename V, typename H, typename EQ, typename C>
 kvpq<K, V, H, EQ, C>::kvpq(size_type bucket_count, const H& hash,
                            const EQ& key_equal, const C& comp)
-    : bucket_mask_(bucket_count - 1), hash_(hash), key_equal_(key_equal),
-      comp_(comp), capacity_(get_capacity(max_load_factor_, bucket_mask_)) {
+    : hash_(hash), key_equal_(key_equal), comp_(comp),
+      bucket_mask_(bucket_count - 1),
+      capacity_(get_capacity(max_load_factor_, bucket_mask_)) {
   offset_ = new size_type[capacity()];
   table_ = (table_type*)operator new[](capacity() * sizeof(table_type));
   heap_ = (heap_type*)operator new[](capacity() * sizeof(heap_type));
@@ -454,8 +456,8 @@ kvpq<K, V, H, EQ, C>::kvpq(const kvpq& o)
 // (4)
 template <typename K, typename V, typename H, typename EQ, typename C>
 kvpq<K, V, H, EQ, C>::kvpq(kvpq&& o)
-    : bucket_mask_(o.bucket_mask_), hash_(move(o.hash_)),
-      key_equal_(move(o.key_equal_)), comp_(move(o.comp_)),
+    : hash_(move(o.hash_)), key_equal_(move(o.key_equal_)),
+      comp_(move(o.comp_)), bucket_mask_(o.bucket_mask_),
       max_load_factor_(o.max_load_factor_), capacity_(o.capacity_),
       size_(o.size_), offset_(o.offset_), table_(o.table_), heap_(o.heap_) {
   o.size_ = 0;
