@@ -346,13 +346,22 @@ class kvpq {
   float load_factor() const { return get_load_factor(size_, bucket_mask_); }
   float max_load_factor() const { return max_load_factor_; }
   void max_load_factor(float lf) {
-    resize(get_bucket_mask(size_, lf));
+    auto bucket_mask = get_bucket_mask(size_, lf);
+    auto table_capacity = get_table_capacity(lf, bucket_mask);
+    resize(bucket_mask, table_capacity);
     max_load_factor_ = lf;
-    capacity_ = get_capacity(max_load_factor_, bucket_mask_);
+    assert(bucket_mask_ == bucket_mask);
+    assert(table_capacity_ >= table_capacity);
+    // TODO: heap_type[] of length at least capacity
+    //       (cache this length as heap_capacity_)
+    // TODO: rename capacity_ -> table_capacity_
+    table_capacity_ = get_table_capacity(max_load_factor_, bucket_mask_);
   }
   void rehash(size_type bucket_count) { resize(Mask(bucket_count - 1)); }
   void reserve(size_type count) {
-    if (count > capacity_) { resize(get_bucket_mask(count, max_load_factor_)); }
+    if (count > table_capacity_) {
+      resize(get_bucket_mask(count, max_load_factor_));
+    }
   }
 
   // Observers
@@ -415,19 +424,20 @@ class kvpq {
                      1)
                : Mask(1);
   }
-  [[nodiscard]] static inline size_type get_capacity(float load_factor,
-                                                     Mask bucket_mask) {
+  [[nodiscard]] static inline size_type get_table_capacity(float load_factor,
+                                                           Mask bucket_mask) {
     return (1. - 1. / std::sqrt(load_factor * 2. + 1.)) *
            (size_type(bucket_mask) + 1);
   }
-  void resize(Mask bucket_mask);
+  void resize(Mask bucket_mask, size_type heap_capacity);
 
   [[no_unique_address]] H hash_;
   [[no_unique_address]] EQ key_equal_;
   [[no_unique_address]] C comp_;
   float max_load_factor_ = DEFAULT_MAX_LOAD_FACTOR;
   Mask bucket_mask_;
-  size_type capacity_;
+  size_type table_capacity_;
+  size_type heap_capacity_; // TODO: FIXME
   size_type size_ = 0;
   size_type* offset_;
   table_type* table_;
@@ -440,7 +450,7 @@ kvpq<K, V, H, EQ, C>::kvpq(size_type bucket_count, const H& hash,
                            const EQ& key_equal, const C& comp)
     : hash_(hash), key_equal_(key_equal), comp_(comp),
       bucket_mask_(bucket_count - 1),
-      capacity_(get_capacity(max_load_factor_, bucket_mask_)) {
+      table_capacity_(get_capacity(max_load_factor_, bucket_mask_)) {
   offset_ = new size_type[capacity()]();
   table_ = (table_type*)operator new[](capacity() * sizeof(table_type));
   heap_ = (heap_type*)operator new[](capacity() * sizeof(heap_type));
@@ -450,7 +460,7 @@ template <typename K, typename V, typename H, typename EQ, typename C>
 kvpq<K, V, H, EQ, C>::kvpq(const kvpq& o)
     : kvpq(o.capacity(), o.hash_, o.key_equal_, o.comp_) {
   max_load_factor_ = o.max_load_factor_;
-  capacity_ = o.capacity_;
+  table_capacity_ = o.table_capacity_;
   for (size_type i = 0; i < o.size(); ++i) {
     ++size_;
     size_type j = o.heap_[i].other() - o.table_;
@@ -459,7 +469,7 @@ kvpq<K, V, H, EQ, C>::kvpq(const kvpq& o)
     new (table_ + j) table_type(move(table_entry));
     new (heap_ + i) heap_type(move(heap_entry));
   }
-  assert(capacity_ >= size_);
+  assert(table_capacity_ >= size_);
 }
 
 // (4)
@@ -467,7 +477,7 @@ template <typename K, typename V, typename H, typename EQ, typename C>
 kvpq<K, V, H, EQ, C>::kvpq(kvpq&& o)
     : hash_(move(o.hash_)), key_equal_(move(o.key_equal_)),
       comp_(move(o.comp_)), bucket_mask_(o.bucket_mask_),
-      max_load_factor_(o.max_load_factor_), capacity_(o.capacity_),
+      max_load_factor_(o.max_load_factor_), table_capacity_(o.table_capacity_),
       size_(o.size_), offset_(o.offset_), table_(o.table_), heap_(o.heap_) {
   o.size_ = 0;
   o.offset_ = nullptr;
@@ -495,7 +505,7 @@ kvpq<K, V, H, EQ, C>& kvpq<K, V, H, EQ, C>::operator=(const kvpq& o) {
   key_equal_ = o.key_equal_;
   comp_ = o.comp_;
   max_load_factor_ = o.max_load_factor_;
-  capacity_ = o.capacity_;
+  table_capacity_ = o.table_capacity_;
 
   for (size_type i = 0; i < o.size(); ++i) {
     ++size_;
@@ -505,7 +515,7 @@ kvpq<K, V, H, EQ, C>& kvpq<K, V, H, EQ, C>::operator=(const kvpq& o) {
     new (table_ + j) table_type(move(table_entry));
     new (heap_ + i) heap_type(move(heap_entry));
   }
-  assert(capacity_ >= size_);
+  assert(table_capacity_ >= size_);
 
   return *this;
 }
@@ -580,7 +590,7 @@ kvpq<K, V, H, EQ, C>::emplace(ARGS&&... args) {
     heap_[j] = move(heap_entry);
   }
   ++size_;
-  assert(capacity_ >= size_);
+  assert(table_capacity_ >= size_);
   return {iterator(heap_ + j), true};
 }
 template <typename K, typename V, typename H, typename EQ, typename C>
@@ -681,8 +691,10 @@ kvpq<K, V, H, EQ, C>::find(const K& k) const {
 
 // Hash policy
 template <typename K, typename V, typename H, typename EQ, typename C>
-void kvpq<K, V, H, EQ, C>::resize(Mask bucket_mask) {
-  if (~bucket_mask_ & bucket_mask) { return; }
+void kvpq<K, V, H, EQ, C>::resize(Mask bucket_mask, size_type heap_capacity) {
+  if (~bucket_mask_ & bucket_mask && heap_capacity_ >= heap_capacity) {
+    return;
+  }
   // new offset, table arrays
 
   // TODO: check that operator new[] allocates bytes, not sizeof(T) natively
@@ -701,7 +713,7 @@ void kvpq<K, V, H, EQ, C>::resize(Mask bucket_mask) {
 
   // buckets_ = buckets; (operator= for buckets calls destructor?)
   // capacity_ = get_capacity(max_load_factor_, bucket_mask_);
-  assert(capacity_ >= size_);
+  assert(table_capacity_ >= size_);
 }
 
 // Non-member functions
